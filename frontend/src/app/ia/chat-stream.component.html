@@ -1,0 +1,12 @@
+<form (ngSubmit)="enviar()" style="display: flex; flex-direction: column; gap: 10px;">
+  <label for="mensagem"><strong>Sua Mensagem:</strong></label>
+  <textarea id="mensagem" name="mensagem" [(ngModel)]="mensagem" maxlength="2000" rows="4" required></textarea>
+  <div style="display: flex; gap: 10px;">
+    <button type="submit" [disabled]="status() === 'loading'" style="padding: 10px; cursor: pointer; width: 100px;">Enviar</button>
+    <button type="button" (click)="cancelar()" [disabled]="status() !== 'loading'" style="padding: 10px; cursor: pointer; width: 100px; color: red;">Cancelar</button>
+  </div>
+</form>
+<p><strong>Status:</strong> {{ status() }}</p>
+<div style="background: #f4f4f4; padding: 15px; border-radius: 5px; min-height: 100px; border: 1px solid #ccc;">
+  <pre aria-live="polite" style="white-space: pre-wrap; font-family: inherit; margin: 0;">{{ resposta() }}</pre>
+</div>
