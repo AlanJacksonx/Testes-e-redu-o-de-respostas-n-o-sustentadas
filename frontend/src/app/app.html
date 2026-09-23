@@ -1,6 +1,41 @@
-<main style="padding: 20px; font-family: sans-serif; max-width: 800px; margin: 0 auto;">
-  <h2>Chat com IA (Streaming Local via NDJSON)</h2>
-  <hr style="margin-bottom: 20px;">
-  
-  <app-chat-stream></app-chat-stream>
-</main>
+<div class="chat-container">
+  <header class="chat-header">
+    <h1>✨ Assistente IA (Local)</h1>
+    <span class="status-badge" [class.streaming]="status === 'streaming'">
+      {{ status === 'streaming' ? 'A gerar...' : (status === 'error' ? 'Erro' : 'Pronto') }}
+    </span>
+  </header>
+
+  <main class="chat-window">
+    <div class="message-bubble ai-bubble" *ngIf="resposta">
+      <div class="avatar">🤖</div>
+      <div class="message-content">
+        <pre>{{ resposta }}</pre>
+      </div>
+    </div>
+    
+    <div class="empty-state" *ngIf="!resposta && status !== 'streaming'">
+      <p>Como posso ajudar hoje?</p>
+    </div>
+  </main>
+
+  <footer class="chat-input-area">
+    <div class="input-wrapper">
+      <textarea 
+        [(ngModel)]="mensagem" 
+        placeholder="Escreva a sua mensagem para a IA..." 
+        rows="1"
+        (keydown.enter)="$event.preventDefault(); enviar()">
+      </textarea>
+      
+      <div class="button-group">
+        <button class="btn-cancel" (click)="cancelar()" *ngIf="status === 'streaming'">
+          Parar
+        </button>
+        <button class="btn-send" (click)="enviar()" [disabled]="status === 'streaming' || !mensagem">
+          Enviar
+        </button>
+      </div>
+    </div>
+  </footer>
+</div>
