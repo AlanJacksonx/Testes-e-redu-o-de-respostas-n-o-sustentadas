@@ -64,3 +64,13 @@ As etapas a seguir descrevem o procedimento para reproduzir o ambiente de testes
 **I. Orquestração do Ambiente (Containers)**
 ```bash
 docker compose up -d --build
+
+````
+
+**II. Acesso à Interface Gráfica de Interação**
+* Endereço local: `http://localhost:4200`
+
+**III. Execução do Avaliador de Chamados**
+Para acionar o algoritmo de testes e gerar a métrica analítica no terminal e no arquivo `resultado-avaliacao.json`, execute no console:
+```bash
+docker compose exec backend npm run avaliar:chamados
