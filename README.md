@@ -1,98 +1,66 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Relatório Técnico-Acadêmico: Avaliação e Mitigação de Respostas Não Sustentadas em Modelos de Linguagem
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+**Discente:** Alan Jackson Silva de Medeiros  
+**Curso:** Tecnologia em Sistemas para Internet (TSI)  
+**Instituição:** Instituto Federal do Rio Grande do Norte (IFRN) - Campus Currais Novos  
+**Ambiente de Desenvolvimento:** Docker / Arch Linux / Ollama (`llama3.2:latest`)  
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 1. Introdução e Arquitetura do Sistema
+O presente projeto documenta a implementação de um sistema baseado em Inteligência Artificial Generativa local, estruturado sob uma arquitetura de microsserviços. A solução é composta por uma interface de usuário desenvolvida em Angular, que consome dados em fluxo contínuo (*streaming* via NDJSON), e uma API construída em NestJS. 
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+O foco analítico desta entrega (Atividade 11) reside no **módulo de classificação de chamados de suporte técnico**, cujo propósito é avaliar a resiliência do Modelo de Linguagem de Grande Escala (LLM) diante de diretrizes estritas de categorização, mitigando o fenômeno de respostas não sustentadas (alucinações).
 
-## Project setup
+---
 
+## 2. Metodologia do Experimento
+Para o teste de classificação, o modelo foi instruído a restringir sua saída a um conjunto fechado de cinco categorias taxonômicas: `ACESSO`, `FINANCEIRO`, `MATRICULA`, `DOCUMENTOS` e `OUTROS`.
+
+Foi desenvolvida uma suíte de testes automatizados (`src/chamados/avaliacao`) composta por 12 cenários de validação, estratificados nas seguintes classes:
+*   **Casos Normais:** Requisições explícitas com correspondência direta à categoria.
+*   **Casos de Fronteira:** Ambiguidade e estruturas de negação explícita.
+*   **Casos de Ausência:** Falta de contexto mínimo para categorização (esperado fallback para `OUTROS`).
+*   **Casos Adversariais:** Tentativas de evasão das regras de prompt (*prompt injection*).
+
+---
+
+## 3. Análise de Resultados e Evolução de Métricas
+
+O experimento foi conduzido em duas fases arquitetônicas para evidenciar o impacto de estratégias de programação defensiva.
+
+### 3.1. Fase 1: Validação Estrita (Sem Tratamento de Ruído)
+Nesta etapa inicial, o *backend* validou a saída do LLM exigindo correspondência estrita (tipoagem forte via `isChamadoCategoria` em TypeScript).
+*   **Acurácia Global:** 41,6%
+*   **Conformidade de Formato:** 41,6%
+*   **Discussão:** Observou-se uma alta taxa de indisciplina na formatação por parte do modelo. A geração incluía sinais de pontuação não solicitados (ex.: `"ACESSO."`) e textos conversacionais, violando o contrato da API e resultando em exceções do tipo `BadGatewayException`.
+
+### 3.2. Fase 2: Implementação de Sanitização Extrativa
+Para mitigar a falha de formatação, desenvolveu-se um mecanismo de extração léxica no `ChamadosService`, responsável por varrer a *string* bruta retornada pelo LLM e isolar as palavras-chave pertencentes ao domínio válido.
+*   **Acurácia Global:** 50,0%
+*   **Conformidade de Formato:** 83,3%
+*   **Discussão:** A aplicação da sanitização demonstrou eficácia significativa, dobrando o índice de conformidade estrutural. A margem de erro residual (16,7%) foi atribuída a alucinações de natureza ortográfica (ex.: a geração do vocábulo `"ACCESSO"`, com grafia divergente do léxico padrão em língua portuguesa), o que impossibilitou a extração determinística.
+
+---
+
+## 4. Desafios Semânticos e Engenharia de Prompt
+
+Na tentativa de otimizar o discernimento lógico do modelo, foram estabelecidas oito diretrizes rígidas no *prompt* de sistema. Destaca-se a formulação da Regra 8, concebida para evitar viés de ancoragem em termos negados:
+> *"Regra 8: Se o usuário estiver negando uma intenção (ex: 'não quero X, quero Y'), classifique pelo Y."*
+
+Não obstante a instrução explícita, constatou-se que o modelo local (`llama3.2:latest`) apresenta limitações cognitivas no processamento de negações cruzadas. No caso de teste fronteiriço *"Não quero trancar a matrícula, só questionar o valor"*, a inteligência artificial ancorou-se no substantivo "matrícula", classificando o texto erroneamente na categoria `MATRICULA` e suprimindo o intento central da solicitação (`FINANCEIRO`). 
+
+---
+
+## 5. Conclusões
+Os dados obtidos indicam que a dependência exclusiva de engenharia de *prompt* é insuficiente para garantir a estabilidade de LLMs de menor escala em ambientes de produção. A conformidade do sistema e a redução de respostas não sustentadas exigem a acoplagem obrigatória de camadas de programação defensiva no lado do servidor (*backend*), garantindo que a higienização de *outputs* atue como barreira arquitetônica contra alucinações.
+
+---
+
+## 6. Instruções de Implantação e Reprodução
+
+As etapas a seguir descrevem o procedimento para reproduzir o ambiente de testes e validação:
+
+**I. Orquestração do Ambiente (Containers)**
 ```bash
-$ npm install
-```
-
-## Compile and run the project
-
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+docker compose up -d --build
